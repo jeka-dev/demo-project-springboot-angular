@@ -1,6 +1,6 @@
 import dev.jeka.core.api.project.JkProject;
 import dev.jeka.core.api.system.JkLog;
-import dev.jeka.core.api.testing.ApplicationTester;
+import dev.jeka.core.api.testing.JkApplicationTester;
 import dev.jeka.core.api.testing.JkTestProcessor;
 import dev.jeka.core.api.testing.JkTestSelection;
 import dev.jeka.core.api.tooling.docker.JkDocker;
@@ -87,7 +87,7 @@ class Build extends KBean {
     }
 
     // Deploy application on Host, test it and undeploy
-    private class HostAppTester extends ApplicationTester {
+    private class HostAppTester extends JkApplicationTester {
 
         int port;
 
@@ -124,7 +124,7 @@ class Build extends KBean {
     }
 
     // Deploy application on Docker, test it and undeploy
-    class DockerTester extends ApplicationTester {
+    class DockerTester extends JkApplicationTester {
 
         int port;
 
@@ -137,7 +137,7 @@ class Build extends KBean {
             port = findFreePort();
             baseUrl = "http://localhost:" + port;
             containerName = project.getBaseDir().toAbsolutePath().getFileName().toString() + "-" + port;
-            JkDocker.prepareExec("run", "-d", "-p", String.format("%s:8080", port), "--name",
+            JkDocker.of().addParams("run", "-d", "-p", String.format("%s:8080", port), "--name",
                     containerName, dockerKBean.jvmImageName)
                     .setInheritIO(false)
                     .setLogWithJekaDecorator(true)
@@ -156,7 +156,7 @@ class Build extends KBean {
 
         @Override
         protected void stopGracefully() {
-            JkDocker.prepareExec("rm", "-f", containerName)
+            JkDocker.of().addParams("rm", "-f", containerName)
                     .setInheritIO(false).setLogWithJekaDecorator(true)
                     .exec();
         }
