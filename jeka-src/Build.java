@@ -4,6 +4,7 @@ import dev.jeka.core.api.testing.JkApplicationTester;
 import dev.jeka.core.api.testing.JkTestProcessor;
 import dev.jeka.core.api.testing.JkTestSelection;
 import dev.jeka.core.api.tooling.docker.JkDocker;
+import dev.jeka.core.api.tooling.docker.JkDockerAppTester;
 import dev.jeka.core.api.utils.JkUtilsNet;
 import dev.jeka.core.tool.JkDoc;
 import dev.jeka.core.tool.JkInject;
@@ -13,6 +14,7 @@ import dev.jeka.core.tool.builtins.project.ProjectKBean;
 import dev.jeka.core.tool.builtins.tooling.docker.DockerKBean;
 import dev.jeka.plugins.sonarqube.JkSonarqube;
 import dev.jeka.plugins.sonarqube.SonarqubeKBean;
+import dev.jeka.plugins.springboot.JkSpringbootAppTester;
 
 import java.nio.file.Files;
 
@@ -45,12 +47,12 @@ class Build extends KBean {
 
     @JkDoc("Execute E2E test on application deployed locally.")
     public void e2e() {
-        new HostAppTester().run();
+        JkSpringbootAppTester.of(projectKBean, this::execSelenideTests).run();
     }
 
     @JkDoc("Execute E2E test on application deployed in Docker.")
     public void e2eDocker() {
-        new DockerTester().run();
+        load(DockerKBean.class).createJvmAppTester(this::execSelenideTests).run();
     }
 
     @JkPostInit
@@ -59,7 +61,7 @@ class Build extends KBean {
     }
 
     @JkPostInit
-    private void customizeDockerImage(DockerKBean dockerKBean) {
+    private void postInit(DockerKBean dockerKBean) {
         dockerKBean.customizeJvmImage(dockerBuild ->
         dockerBuild
                 .addAgent("io.opentelemetry.javaagent:opentelemetry-javaagent:1.32.0", "")
@@ -80,46 +82,11 @@ class Build extends KBean {
                 .addJavaOptions("-Dselenide.reportsFolder=jeka-output/test-report/selenide")
                 .addJavaOptions("-Dselenide.downloadsFolder=jeka-output/test-report/selenide-download")
                 .addJavaOptions("-Dselenide.headless=true")
+                //.addJavaOptions("-Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR")
                 .addJavaOptions("-Dselenide.baseUrl=" + baseUrl);
         testProcessor.launch(project.testing.getTestClasspath(), selection).assertSuccess();
     }
 
-    // Deploy application on Host, test it and undeploy
-    private class HostAppTester extends JkApplicationTester {
-
-        int port;
-
-        String baseUrl;
-
-        @Override
-        public void startApp() {
-            startTimeout = 30*1000;
-            port = findFreePort();
-            baseUrl = "http://localhost:" + port;
-            projectKBean.project.prepareRunJar(JkProject.RuntimeDeps.EXCLUDE)
-                    .addJavaOptions("-Dserver.port=" + port)
-                    .addJavaOptions("-Dmanagement.endpoint.shutdown.enabled=true")
-                    .setInheritIO(true)
-                    .execAsync();
-        }
-
-        @Override
-        public boolean isApplicationReady() {
-            return JkUtilsNet.isStatusOk(baseUrl + "/actuator/health", JkLog.isDebug());
-        }
-
-        @Override
-        public void executeTests() {
-            execSelenideTests(baseUrl);
-        }
-
-        @Override
-        public void stopGracefully() {
-            String shutdownUrl = baseUrl + "/actuator/shutdown";
-            JkLog.info("Invoke %s", shutdownUrl);
-            JkUtilsNet.sendHttpRequest(shutdownUrl, "POST", null).asserOk();
-        }
-    }
 
     // Deploy application on Docker, test it and undeploy
     class DockerTester extends JkApplicationTester {
