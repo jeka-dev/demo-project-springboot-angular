@@ -4,9 +4,10 @@ import dev.jeka.core.api.testing.JkApplicationTester;
 import dev.jeka.core.api.testing.JkTestProcessor;
 import dev.jeka.core.api.testing.JkTestSelection;
 import dev.jeka.core.api.tooling.docker.JkDocker;
-import dev.jeka.core.api.tooling.docker.JkDockerJvmBuild;
 import dev.jeka.core.api.utils.JkUtilsNet;
 import dev.jeka.core.tool.JkDoc;
+import dev.jeka.core.tool.JkInject;
+import dev.jeka.core.tool.JkPostInit;
 import dev.jeka.core.tool.KBean;
 import dev.jeka.core.tool.builtins.project.ProjectKBean;
 import dev.jeka.core.tool.builtins.tooling.docker.DockerKBean;
@@ -17,27 +18,16 @@ import java.nio.file.Files;
 
 class Build extends KBean {
 
-    final JkProject project = load(ProjectKBean.class).project;
-
-    final DockerKBean dockerKBean = load(DockerKBean.class);
-
     static final String E2E_TEST_PATTERN = "^e2e\\..*";
 
-    /*
-     * Configures KBean project
-     * When this method is called, option fields have already been injected from command line.
-     */
-    @Override
-    protected void init() {
-        project.testing.testSelection.addExcludePatterns(E2E_TEST_PATTERN); // exclude e2e from unit tests
-        dockerKBean.customizeJvmImage(this::customizeDockerImage);
-    }
+    @JkInject
+    private ProjectKBean projectKBean;
 
     @JkDoc("Execute a Sonarqube scan on the NodeJs project")
     public void sonarJs() {
-        JkSonarqube javaSonarqube = load(SonarqubeKBean.class).sonarqube;
+        JkSonarqube javaSonarqube = load(SonarqubeKBean.class).getSonarqube();
         JkSonarqube jsSonarqube = javaSonarqube.copyWithoutProperties();
-        String projectId = project.getBaseDir().toAbsolutePath().getFileName() + "-js";
+        String projectId = projectKBean.project.getBaseDir().toAbsolutePath().getFileName() + "-js";
         jsSonarqube
                 .setProperty(JkSonarqube.PROJECT_KEY, projectId)
                 .setProperty(JkSonarqube.PROJECT_NAME, projectId)
@@ -63,13 +53,21 @@ class Build extends KBean {
         new DockerTester().run();
     }
 
-    private void customizeDockerImage(JkDockerJvmBuild dockerBuild) {
+    @JkPostInit
+    private void postInit(ProjectKBean projectKBean) {
+        projectKBean.project.testing.testSelection.addExcludePatterns(E2E_TEST_PATTERN);
+    }
+
+    @JkPostInit
+    private void customizeDockerImage(DockerKBean dockerKBean) {
+        dockerKBean.customizeJvmImage(dockerBuild ->
         dockerBuild
                 .addAgent("io.opentelemetry.javaagent:opentelemetry-javaagent:1.32.0", "")
-                .setBaseImage("eclipse-temurin:21.0.1_12-jre-jammy");
+                .setBaseImage("eclipse-temurin:21.0.1_12-jre-jammy"));
     }
 
     private void execSelenideTests(String baseUrl) {
+        JkProject project = projectKBean.project;
         if (!Files.exists(project.testing.compilation.layout.resolveClassDir())) {
             project.testing.compilation.run();
         }
@@ -98,7 +96,7 @@ class Build extends KBean {
             startTimeout = 30*1000;
             port = findFreePort();
             baseUrl = "http://localhost:" + port;
-            project.prepareRunJar(JkProject.RuntimeDeps.EXCLUDE)
+            projectKBean.project.prepareRunJar(JkProject.RuntimeDeps.EXCLUDE)
                     .addJavaOptions("-Dserver.port=" + port)
                     .addJavaOptions("-Dmanagement.endpoint.shutdown.enabled=true")
                     .setInheritIO(true)
@@ -136,9 +134,9 @@ class Build extends KBean {
         protected void startApp() {
             port = findFreePort();
             baseUrl = "http://localhost:" + port;
-            containerName = project.getBaseDir().toAbsolutePath().getFileName().toString() + "-" + port;
+            containerName = projectKBean.project.getBaseDir().toAbsolutePath().getFileName().toString() + "-" + port;
             JkDocker.of().addParams("run", "-d", "-p", String.format("%s:8080", port), "--name",
-                    containerName, dockerKBean.jvmImageName)
+                    containerName, load(DockerKBean.class).jvmImageName)
                     .setInheritIO(false)
                     .setLogWithJekaDecorator(true)
                     .exec();

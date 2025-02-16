@@ -19,19 +19,12 @@ It has been copied from Tutorial https://www.baeldung.com/spring-boot-angular-we
 
 ## Run the application
 
-> [!NOTE]
-> Here, we assume that users clone the repository prior using JeKa commands.
-> Therefore, JeKa installation on host is not mandatory, as the repo includes shell scripts (*jeka* and *jeka.ps1*) at its root.
-
-Clone this repository, and execute the following command from the root dir :
-
 ```shell
 jeka -p
 ```
-This creates a bootable jar if absent, then launch it.
-Tha application is usable at http://localhost:8080
+Creates a bootable jar if missing, then launches it. The app is available at http://localhost:8080.  
 
-On second run, the app is directly executed, bypassing the build phase.
+On the second run, it skips the build and runs directly.
 
 > [!TIP]
 > If you want to start the application without cloning Git repository by yourself, just execute :
@@ -41,15 +34,12 @@ On second run, the app is directly executed, bypassing the build phase.
 
 ## Build application
 
-To build application, including both Java and Angular testing, execute :
+Build application, including both Java and Angular testing:
 ```shell
 jeka project: pack
 ```
-This creates a bootable jar in *jeka-output* dir. 
-
 The bootable jar embeds the Angular application.
-This is because `NodeJs` Kbean is configured to build Angular app alongside Springboot app 
-(`@nodeJs.autoConfigureProject=true` in  [jeka.properties](jeka.properties)).
+
 
 ## Build application with sonar analysis + code coverage
 
@@ -68,7 +58,7 @@ This is because `NodeJs` Kbean is configured to build Angular app alongside Spri
 ```shell
 jeka ::packQuality
 ```
-The meaning of *::packQuality* and the tool versions are defined in [jeka.properties](jeka.properties)
+ *::packQuality* is defined in [jeka.properties](jeka.properties)
 
 The Sonarqube analysis + coverage for Java code is provided out-of-the-box, thanks to *Jacoco* and *Sonarqube* Kbean, 
 that are activated in the command line.
