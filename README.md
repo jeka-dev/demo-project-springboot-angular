@@ -2,29 +2,25 @@
 
 This repo show-cases how to build a Springboot+Angular Application with JeKa. The build involves :
 
-- Compilation + testing of the Java code
-- Compilation + testing of the Angular code
-- Sonarqube + Test coverage analysis of Java code
-- Sonarqube + Test coverage analysis of Angular code
-- End-to-end testing (using selenide) on application deployed on host
-- End-to-end testing (using selenide) on application deployed on Docker
+- Compilation + testing of the Java an Angular code
+- Sonarqube analysis of Java and Angular code (with Java code coverage)
+- End-to-end testing (using selenide) on application deployed on host or Docker
 
 Additionally this demo showcases [how to create Docker native images](#Docker-Image).
 
-The application is a simple web app, managing a list of users.
+The application is a simple web app, managing a list of users, copied from [this tutorial](https://www.baeldung.com/spring-boot-angular-web).
 
 ![screenshot.png](./screenshot.png)
 
-It has been copied from Tutorial https://www.baeldung.com/spring-boot-angular-web
 
 ## Run the application
 
 ```shell
 jeka -p
 ```
-Creates a bootable jar if missing, then launches it. The app is available at http://localhost:8080.  
+Creates a bootable JAR if not found and starts the app. Access it at [http://localhost:8080](http://localhost:8080).
 
-On the second run, it skips the build and runs directly.
+If a native executable is built, this command runs that version instead.
 
 > [!TIP]
 > If you want to start the application without cloning Git repository by yourself, just execute :
@@ -36,10 +32,15 @@ On the second run, it skips the build and runs directly.
 
 Build application, including both Java and Angular testing:
 ```shell
-jeka project: pack
+jeka pack
 ```
 The bootable jar embeds the Angular application.
 
+Build a native executable of the application:
+```shell
+jeka pack native: compile
+```
+Once built, you can execute it using `jeka -p`.
 
 ## Build application with sonar analysis + code coverage
 
@@ -58,18 +59,16 @@ The bootable jar embeds the Angular application.
 ```shell
 jeka ::packQuality
 ```
- *::packQuality* is defined in [jeka.properties](jeka.properties)
+Command *::packQuality* is defined in [jeka.properties](jeka.properties)
 
 The Sonarqube analysis + coverage for Java code is provided out-of-the-box, thanks to *Jacoco* and *Sonarqube* Kbean, 
 that are activated in the command line.
 
-For Angular part, a specific method `sonarJs` has been implemented. 
-This method invoke is defined in the `::packQuality` shorthand.
+For Angular part, a specific method `sonarJs` has been implemented.
 
 ## End-to-end testing
 
 Here, the application is tested end-to-end using [selenide](https://https://selenide.org/).
-
 This allows to test the application by simulating user actions on the browser.
 
 The test classes for e2e tests are located in *e2e* package from *test* dir.
@@ -83,97 +82,42 @@ The tests are executed on deployed applications. This build includes 2 scenarios
 
 Make sure the application is already build (`jeka project: pack`).
 
+Deploy-test-undeploy:
 ```shell
-jeka e2e
+jeka build: e2e
 ```
-This will :
-- launch the application on local host
-- Wait that the application is ready
-- Execute the e2e test suite against the locally deployed application
-- Shutdown the application when test are finished
-
-This execution workflow is defined in `e2e()` method from `Build` class in *jeka-src* dir.
 
 ### Testing with Docker
 
 > [!NOTE]
 > This requires to have a Docker client running. This can be *DockerDesktop* running on your laptop.
 
-Make sure that the docker image is already built.
-```shell
-jeka docker: build
-```
-This constructs a Docker image of the application. 
-he specific setup of the image is defined in `Build#customizeDockerImage` method.
+Make sure that the docker image is already built: `jeka pack docker: build` or `jeka pack docker: buildNative`.
 
-You can execute directly the image by executing:
+This constructs a Docker image of the application, that you can execute with:
 ```shell
-docker run --rm -p 8080:8080 demo-project-springboot-angular:latest
+docker run --rm -p  8080:8080 demo-project-springboot-angular:latest
 ```
 
+Deploy-test-undeploy:
 ```shell
-jeka e2eDocker
+jeka build: e2eDocker
 ```
-This will :
-- launch the application in a container
-- Wait that the application is ready
-- Execute the e2e test suite against the containerized app
-- Shutdown and remove the container
 
-This execution workflow is defined in `Build.e2eDocker()` method.
+## Create Docker images
 
-## Create native executable and Docker native image
-
-Compile the Spring-Boot project in a native executable:
-```shell
-jeka native: compile
-```
-The *springboot KBean* (declared in *jeka.properties*) instructs the *native KBean* to include a Spring AOT enrichment phase prior executing *native-image*.
-Thus, no additional configuration is needed.
-
-### Docker Image
-
-With Jeka, you can easily create Docker native images, regardless of whether you're running on Windows, Linux, or macOS.
+With Jeka, you can easily create Docker JVM or native images, regardless of whether you're running on Windows, Linux, or macOS.
 
 To create a Docker image, run: 
 ```shell
-jeka docker: buildNative
+jeka pack docker: build
 ```
-
-By default, the native image is based on Ubuntu. 
-
-We can generate a smaller image, based on a minimal distroless image, but we need to
-compile by statically linking *libc*, as it is not included in that image.
-
+or
 ```shell
-jeka native: staticLink=MUSL docker: nativeBaseImage=gcr.io/distroless/static-debian12:nonroot buildNative
+jeka pack docker: buildNative
 ```
 
-To see details of the generated image, use `docker: infoNative` command, as :
-```shell
-jeka docker: nativeBaseImage=gcr.io/distroless/static-debian12:nonroot infoNative
-```
+See [documentation](https://jeka-dev.github.io/jeka/reference/kbeans-docker/) for customizing Docker images.
 
-You can also inspect the generated (Docker build dir)[jeka-output/docker-build-native-demo-project-springboot-angular#latest]
-
-To shorten command line, some parameters can be mentioned in *jeka.properties* file.
-```properties
-@native.staticLink=MUSL
-@docker.nativeBaseImage=gcr.io/distroless/static-debian12:nonroot
-@springboot.aotProfiles=my-profile-a,my-profile-b
-```
-
-The generated Dockerbuild file can be customized using code following in the init method of your KBean :
-
-```java
-@Override
-public void init() {
-    ...
-    load(DockerKBean.class).customizeNativeImage(steps -> steps
-            .addCopy(aFile, "/etc/myconfig")
-            .add("RUN ..."))
-    ;
-}
-```
 
 
