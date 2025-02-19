@@ -1,11 +1,6 @@
 import dev.jeka.core.api.project.JkProject;
-import dev.jeka.core.api.system.JkLog;
-import dev.jeka.core.api.testing.JkApplicationTester;
 import dev.jeka.core.api.testing.JkTestProcessor;
 import dev.jeka.core.api.testing.JkTestSelection;
-import dev.jeka.core.api.tooling.docker.JkDocker;
-import dev.jeka.core.api.tooling.docker.JkDockerAppTester;
-import dev.jeka.core.api.utils.JkUtilsNet;
 import dev.jeka.core.tool.JkDoc;
 import dev.jeka.core.tool.JkInject;
 import dev.jeka.core.tool.JkPostInit;
@@ -22,12 +17,16 @@ class Build extends KBean {
 
     static final String E2E_TEST_PATTERN = "^e2e\\..*";
 
+    @JkDoc("If true, end-to-end tests runs application in container.")
+    public boolean e2eTestOnDocker = false;
+
     @JkInject
     private ProjectKBean projectKBean;
 
     @JkDoc("Execute a Sonarqube scan on the NodeJs project")
     public void sonarJs() {
-        JkSonarqube javaSonarqube = load(SonarqubeKBean.class).getSonarqube();
+        SonarqubeKBean sonarqubeKBean = load(SonarqubeKBean.class);
+        JkSonarqube javaSonarqube = sonarqubeKBean.getSonarqube();
         JkSonarqube jsSonarqube = javaSonarqube.copyWithoutProperties();
         String projectId = projectKBean.project.getBaseDir().toAbsolutePath().getFileName() + "-js";
         jsSonarqube
@@ -43,6 +42,9 @@ class Build extends KBean {
                 .setProperty(JkSonarqube.TEST_INCLUSIONS, "**/*.spec.ts")
                 .setProperty("sonar.typescript.lcov.reportPaths", "coverage/client/lcov.info");
         jsSonarqube.run();
+        if (sonarqubeKBean.gate) {
+            jsSonarqube.checkQualityGate();
+        }
     }
 
     @JkDoc("Execute E2E test on application deployed locally.")
@@ -52,20 +54,25 @@ class Build extends KBean {
 
     @JkDoc("Execute E2E test on application deployed in Docker.")
     public void e2eDocker() {
-        load(DockerKBean.class).createJvmAppTester(this::execSelenideTests).run();
+        load(DockerKBean.class).createJvmAppTester(this::execSelenideTests)
+                .setShowAppLogs(true)
+                .run();
     }
 
     @JkPostInit
     private void postInit(ProjectKBean projectKBean) {
         projectKBean.project.testing.testSelection.addExcludePatterns(E2E_TEST_PATTERN);
+        projectKBean.project.addE2eTester("localhost-tester",
+                this.e2eTestOnDocker ? this::e2eDocker : this::e2e);
+        projectKBean.project.addQualityChecker("sonarqube-js", this::sonarJs);
     }
 
     @JkPostInit
     private void postInit(DockerKBean dockerKBean) {
-        dockerKBean.customizeJvmImage(dockerBuild ->
-        dockerBuild
+        dockerKBean.customizeJvmImage(dockerBuild -> dockerBuild
                 .addAgent("io.opentelemetry.javaagent:opentelemetry-javaagent:1.32.0", "")
-                .setBaseImage("eclipse-temurin:21.0.1_12-jre-jammy"));
+                .setBaseImage("eclipse-temurin:21-jre-jammy")
+        );
     }
 
     private void execSelenideTests(String baseUrl) {
@@ -85,47 +92,6 @@ class Build extends KBean {
                 //.addJavaOptions("-Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR")
                 .addJavaOptions("-Dselenide.baseUrl=" + baseUrl);
         testProcessor.launch(project.testing.getTestClasspath(), selection).assertSuccess();
-    }
-
-
-    // Deploy application on Docker, test it and undeploy
-    class DockerTester extends JkApplicationTester {
-
-        int port;
-
-        String baseUrl;
-
-        String containerName;
-
-        @Override
-        protected void startApp() {
-            port = findFreePort();
-            baseUrl = "http://localhost:" + port;
-            containerName = projectKBean.project.getBaseDir().toAbsolutePath().getFileName().toString() + "-" + port;
-            JkDocker.of().addParams("run", "-d", "-p", String.format("%s:8080", port), "--name",
-                    containerName, load(DockerKBean.class).jvmImageName)
-                    .setInheritIO(false)
-                    .setLogWithJekaDecorator(true)
-                    .exec();
-        }
-
-        @Override
-        protected boolean isApplicationReady() {
-            return JkUtilsNet.isAvailableAndOk(baseUrl, JkLog.isDebug());
-        }
-
-        @Override
-        protected void executeTests() {
-            execSelenideTests(baseUrl);
-        }
-
-        @Override
-        protected void stopGracefully() {
-            JkDocker.of().addParams("rm", "-f", containerName)
-                    .setInheritIO(false).setLogWithJekaDecorator(true)
-                    .exec();
-        }
-
     }
 
 }

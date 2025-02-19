@@ -1,30 +1,47 @@
-# JeKa Springboot-Angular application
+# JeKa Spring Boot-Angular Application
 
-This repo show-cases how to build a Springboot+Angular Application with JeKa. The build involves :
+This repository demonstrates how to build a Spring Boot + Angular application using JeKa. The build process includes:
 
-- Compilation + testing of the Java an Angular code
-- Sonarqube analysis of Java and Angular code (with Java code coverage)
-- End-to-end testing (using selenide) on application deployed on host or Docker
+- Compilation and testing of both Java and Angular code
+- SonarQube analysis for Java and Angular code (including code coverage)
+- End-to-end testing (using Selenide) on the application deployed either locally or in Docker
 
-Additionally this demo showcases [how to create Docker native images](#Docker-Image).
+Additionally, this demo shows [how to create Docker native images](#Docker-Image).
 
-The application is a simple web app, managing a list of users, copied from [this tutorial](https://www.baeldung.com/spring-boot-angular-web).
+The application is a simple web app for managing a list of users, based on [this tutorial](https://www.baeldung.com/spring-boot-angular-web).
 
 ![screenshot.png](./screenshot.png)
 
+## Overview
 
-## Run the application
+```
+jeka -p                  : Runs the application (build it first -behind-the-scene- if jar and exec absent)
+jeka pack                : Builds the application as bootable far (including tests)
+jeka native: compile     : Builds the application as native executable
+jeka checkQuality        : Runs Sonarqube analysis and gates for Java ans JS
+jeka e2eTest             : Deploys application on localhost or Docker and run end-to-end tests
+jeka docker: build       : Creates Docker image of the application
+jeka docker: buildNative : Create Docker image running the native executable of the application
+```
 
+We need to create a `Build` class to configure the specific concerns:
+
+- Sonarqube setting for Javascript app
+- End-to-end testing
+- Docker image customization
+
+## Run the Application without building
 ```shell
 jeka -p
 ```
-Creates a bootable JAR if not found and starts the app. Access it at [http://localhost:8080](http://localhost:8080).
+This command creates a bootable JAR (if it doesn't already exist) and starts the application. 
+Access it at [http://localhost:8080](http://localhost:8080).
 
-If a native executable is built, this command runs that version instead.
+If a native executable has been built, this command runs the native version instead.
 
-> [!TIP]
-> If you want to start the application without cloning Git repository by yourself, just execute :
-> 
+> [!TIP]  
+> To run the application without manually cloning the Git repository, use:
+>
 > `jeka -r https://github.com/jeka-dev/demo-project-springboot-angular.git -p`
 
 
@@ -38,7 +55,7 @@ The bootable jar embeds the Angular application.
 
 Build a native executable of the application:
 ```shell
-jeka pack native: compile
+jeka native: compile
 ```
 Once built, you can execute it using `jeka -p`.
 
@@ -57,26 +74,37 @@ Once built, you can execute it using `jeka -p`.
 
 
 ```shell
-jeka ::packQuality
+jeka checkQuality
 ```
-Command *::packQuality* is defined in [jeka.properties](jeka.properties)
-
 The Sonarqube analysis + coverage for Java code is provided out-of-the-box, thanks to *Jacoco* and *Sonarqube* Kbean, 
 that are activated in the command line.
 
-For Angular part, a specific method `sonarJs` has been implemented.
+The sonarqube JS setting is registered in `Build#postInit(ProjectKBean)` method.
 
-## End-to-end testing
+It can be launched separately using:
+```shell
+jeka build: sonarJs
+```
 
-Here, the application is tested end-to-end using [selenide](https://https://selenide.org/).
-This allows to test the application by simulating user actions on the browser.
+## End-to-End Testing
 
-The test classes for e2e tests are located in *e2e* package from *test* dir.
+The application is tested using [Selenide](https://selenide.org/). 
+Selenide helps simulate user actions in the browser for complete end-to-end testing.
 
-The tests are executed on deployed applications. This build includes 2 scenarios :
+The test classes for end-to-end (E2E) testing are located in the *e2e* package inside the *test* directory. 
+These tests are run on deployed instances of the application:
 
-- Testing the application deployed on local host
-- Testing the application deployed as docker container
+Deploy the application on localhost and test:
+```shell
+jeka e2eTest
+```
+
+Deploy the application on Docker and test:
+```shell
+jeka e2eTest build: e2eTestOnDocker=true
+```
+
+The end-to-end tests are registered in `Build#postInit(ProjectKBean)` method.
 
 ### Testing on local host
 
@@ -116,6 +144,8 @@ or
 ```shell
 jeka pack docker: buildNative
 ```
+
+The docker image is customized using the `Build#postInit(DockerBuild)` method.
 
 See [documentation](https://jeka-dev.github.io/jeka/reference/kbeans-docker/) for customizing Docker images.
 
