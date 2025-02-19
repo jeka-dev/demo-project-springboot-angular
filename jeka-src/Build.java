@@ -59,6 +59,13 @@ class Build extends KBean {
                 .run();
     }
 
+    @JkDoc("Execute E2E test on native application deployed in Docker.")
+    public void e2eDockerNative() {
+        load(DockerKBean.class).createNativeAppTester(this::execSelenideTests)
+                .setShowAppLogs(true)
+                .run();
+    }
+
     @JkPostInit
     private void postInit(ProjectKBean projectKBean) {
         projectKBean.project.testing.testSelection.addExcludePatterns(E2E_TEST_PATTERN);

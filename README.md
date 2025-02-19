@@ -14,6 +14,7 @@ The application is a simple web app for managing a list of users, based on [this
 
 ## Overview
 
+Standard methods:
 ```
 jeka -p                  : Runs the application (build it first -behind-the-scene- if jar and exec absent)
 jeka pack                : Builds the application as bootable far (including tests)
@@ -106,46 +107,22 @@ jeka e2eTest build: e2eTestOnDocker=true
 
 The end-to-end tests are registered in `Build#postInit(ProjectKBean)` method.
 
-### Testing on local host
-
-Make sure the application is already build (`jeka project: pack`).
-
-Deploy-test-undeploy:
-```shell
-jeka build: e2e
-```
-
-### Testing with Docker
-
-> [!NOTE]
-> This requires to have a Docker client running. This can be *DockerDesktop* running on your laptop.
-
-Make sure that the docker image is already built: `jeka pack docker: build` or `jeka pack docker: buildNative`.
-
-This constructs a Docker image of the application, that you can execute with:
-```shell
-docker run --rm -p  8080:8080 demo-project-springboot-angular:latest
-```
-
-Deploy-test-undeploy:
-```shell
-jeka build: e2eDocker
-```
-
 ## Create Docker images
 
 With Jeka, you can easily create Docker JVM or native images, regardless of whether you're running on Windows, Linux, or macOS.
 
 To create a Docker image, run: 
 ```shell
-jeka pack docker: build
+jeka docker: build
 ```
 or
 ```shell
-jeka pack docker: buildNative
+jeka docker: buildNative
 ```
 
 The docker image is customized using the `Build#postInit(DockerBuild)` method.
+
+To see details about KBean initialization, run the commands using `--inspect` option.
 
 See [documentation](https://jeka-dev.github.io/jeka/reference/kbeans-docker/) for customizing Docker images.
 
