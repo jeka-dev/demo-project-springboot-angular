@@ -17,7 +17,8 @@ The application is a simple web app for managing a list of users, based on [this
 Standard methods:
 ```
 jeka -p                  : Runs the application (build it first -behind-the-scene- if jar and exec absent)
-jeka pack                : Builds the application as bootable far (including tests)
+jeka test                : Compiles and runs tests
+jeka pack                : Builds the application as bootable far
 jeka native: compile     : Builds the application as native executable
 jeka checkQuality        : Runs Sonarqube analysis and gates for Java ans JS
 jeka e2eTest             : Deploys application on localhost or Docker and run end-to-end tests
@@ -50,7 +51,7 @@ If a native executable has been built, this command runs the native version inst
 
 Build application, including both Java and Angular testing:
 ```shell
-jeka pack
+jeka test pack
 ```
 The bootable jar embeds the Angular application.
 
@@ -100,7 +101,7 @@ Deploy the application on localhost and test:
 jeka e2eTest
 ```
 
-Deploy the application on Docker and test:
+Run end-to-end tests against the application deployed on Docker
 ```shell
 jeka e2eTest build: e2eTestOnDocker=true
 ```
