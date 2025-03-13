@@ -13,9 +13,7 @@ import dev.jeka.plugins.springboot.JkSpringbootAppTester;
 
 import java.nio.file.Files;
 
-class Build extends KBean {
-
-    static final String E2E_TEST_PATTERN = "^e2e\\..*";
+class Custom extends KBean {
 
     @JkDoc("If true, end-to-end tests runs application in container.")
     public boolean e2eTestOnDocker = false;
@@ -68,10 +66,10 @@ class Build extends KBean {
 
     @JkPostInit
     private void postInit(ProjectKBean projectKBean) {
-        projectKBean.project.testing.testSelection.addExcludePatterns(E2E_TEST_PATTERN);
-        projectKBean.project.addE2eTester("localhost-tester",
+        projectKBean.project.test.selection.addExcludePatterns(JkTestSelection.E2E_PATTERN);
+        projectKBean.project.e2eTest.add("localhost-tester",
                 this.e2eTestOnDocker ? this::e2eDocker : this::e2e);
-        projectKBean.project.addQualityChecker("sonarqube-js", this::sonarJs);
+        projectKBean.project.qualityCheck.add("sonarqube-js", this::sonarJs);
     }
 
     @JkPostInit
@@ -84,12 +82,10 @@ class Build extends KBean {
 
     private void execSelenideTests(String baseUrl) {
         JkProject project = projectKBean.project;
-        if (!Files.exists(project.testing.compilation.layout.resolveClassDir())) {
-            project.testing.compilation.run();
+        if (!Files.exists(project.test.compilation.layout.resolveClassDir())) {
+            project.test.compilation.run();
         }
-        JkTestSelection selection = project.testing.createDefaultTestSelection()
-                .addIncludePatterns(E2E_TEST_PATTERN);
-        JkTestProcessor testProcessor = project.testing.createDefaultTestProcessor().setForkingProcess(true);
+        JkTestProcessor testProcessor = project.test.createDefaultProcessor();
         testProcessor.getForkingProcess()
                 .setLogWithJekaDecorator(true)
                 .setLogCommand(true)
@@ -98,7 +94,7 @@ class Build extends KBean {
                 .addJavaOptions("-Dselenide.headless=true")
                 //.addJavaOptions("-Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR")
                 .addJavaOptions("-Dselenide.baseUrl=" + baseUrl);
-        testProcessor.launch(project.testing.getTestClasspath(), selection).assertSuccess();
+        testProcessor.runMatchingPatterns(JkTestSelection.E2E_PATTERN).assertSuccess();
     }
 
 }
