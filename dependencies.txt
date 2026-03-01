@@ -1,25 +1,18 @@
-##
-# This file declares some dependencies to be included to the project dependencies.
-#
-# More details : https://jeka-dev.github.io/jeka/reference-guide/build-library-project-build/#full-text-description
-##
+[version]
+org.springframework.boot:spring-boot-dependencies:3.2.4@pom
 
-== COMPILE ==
-org.springframework.boot:spring-boot-dependencies::pom:3.2.4
+[compile]
 org.springframework.boot:spring-boot-starter-web
 org.springframework.boot:spring-boot-starter-data-jpa
 org.springframework.boot:spring-boot-starter-validation
 org.springframework.boot:spring-boot-starter-actuator
 com.h2database:h2
+org.jboss.logging:jboss-logging:3.5.3.Final
 
-org.projectlombok:lombok:1.18.32
+[compile-only]
+org.projectlombok:lombok:1.18.42
 
-== RUNTIME ==
-
-
--org.projectlombok:lombok
-
-== TEST ==
+[test]
 org.springframework.boot:spring-boot-starter-test
 com.codeborne:selenide:7.2.3
 

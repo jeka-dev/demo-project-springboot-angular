@@ -2,14 +2,13 @@ package com.baeldung.application;
 
 import com.baeldung.application.entities.User;
 import com.baeldung.application.repositories.UserRepository;
-import java.util.stream.Stream;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.env.Environment;
+
+import java.util.stream.Stream;
 
 @SpringBootApplication
 public class Application {
