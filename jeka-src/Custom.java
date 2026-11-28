@@ -76,7 +76,7 @@ class Custom extends KBean {
     private void postInit(DockerKBean dockerKBean) {
         dockerKBean.customizeJvmImage(dockerBuild -> dockerBuild
                 .addAgent("io.opentelemetry.javaagent:opentelemetry-javaagent:2.34.0", "")
-                .setBaseImage("eclipse-temurin:25-jre-jammy")
+                .setBaseImage("eclipse-temurin:25-jre-noble")
         );
     }
 
